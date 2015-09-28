@@ -121,8 +121,8 @@ namespace Rivet {
             vboson = leptons.at(0).momentum() + met4V;
         } else if (leptons.size() == 2) {
             channel = "llbb";
-            Particles zelels = applyProjection<ZFinder>(event, "ZelelFinder").particles();
-            Particles zmumus = applyProjection<ZFinder>(event, "ZmumuFinder").particles();
+            Particles zelels = applyProjection<ZFinder>(event, "ZelelFinder").bosons();
+            Particles zmumus = applyProjection<ZFinder>(event, "ZmumuFinder").bosons();
 
             if (zelels.size() == 1 && zmumus.size() == 0)
                 vboson = zelels.at(0);
