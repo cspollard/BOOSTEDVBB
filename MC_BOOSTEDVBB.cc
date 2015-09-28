@@ -13,6 +13,7 @@
 #include "Rivet/Projections/ChargedFinalState.hh"
 #include "Rivet/Projections/FastJets.hh"
 #include "Rivet/Projections/ZFinder.hh"
+#include "Rivet/Projections/ChargedLeptons.hh"
 #include "Rivet/Projections/DressedLeptons.hh"
 #include "Rivet/Projections/MissingMomentum.hh"
 
@@ -59,19 +60,25 @@ namespace Rivet {
 
         FinalState allParticles(Cuts::abseta < 4.0);
 
-        PromptFinalState promptParticles(allParticles);
-        promptParticles.acceptTauDecays(true);
+        PromptFinalState promptLeptons = PromptFinalState(ChargedLeptons(allParticles));
+        promptLeptons.acceptTauDecays(true);
+
+        DressedLeptons leptonFinder(allParticles, promptLeptons,
+                0.1, Cuts::abseta < 2.5 && Cuts::pT > 25*GeV);
+
+        addProjection(leptonFinder, "LeptonFinder");
+
 
         // calo jets constituents
         VetoedFinalState caloJetParts(allParticles);
-        caloJetParts.addVetoOnThisFinalState(promptParticles);
+        caloJetParts.addVetoOnThisFinalState(leptonFinder);
         addProjection(FastJets(caloJetParts, FastJets::ANTIKT, 1.0), "AKTCalo10");
 
         // track jets constituents
         ChargedFinalState trackParts(Cuts::abseta < 2.5 && Cuts::pT > 0.5*GeV);
 
         VetoedFinalState trackJetParts(trackParts);
-        trackJetParts.addVetoOnThisFinalState(promptParticles);
+        trackJetParts.addVetoOnThisFinalState(leptonFinder);
         addProjection(FastJets(trackJetParts, FastJets::ANTIKT, 0.2), "AKTTrack02");
 
         ZFinder zelelFinder(trackParts, Cuts::pT > 25*GeV,
@@ -83,11 +90,6 @@ namespace Rivet {
         addProjection(zelelFinder, "ZelelFinder");
         addProjection(zmumuFinder, "ZmumuFinder");
 
-        DressedLeptons leptonFinder(FinalState(), FinalState(), 0.1,
-                Cuts::abseta < 2.5 && Cuts::pT > 25*GeV);
-
-        addProjection(leptonFinder, "LeptonFinder");
-
         MissingMomentum missingMomentum(allParticles);
         addProjection(missingMomentum, "MissingMomentum");
 
@@ -98,8 +100,9 @@ namespace Rivet {
     /// Perform the per-event analysis
     void MC_BOOSTEDVBB::analyze(const Event& event) {
 
-        const Particles& leptons =
-            applyProjection<DressedLeptons>(event, "LeptonFinder").particles();
+        const double w = event.weight();
+        const vector<DressedLepton>& leptons =
+            applyProjection<DressedLeptons>(event, "LeptonFinder").dressedLeptons();
 
         Vector3 met3V =
             applyProjection<MissingMomentum>(event, "MissingMomentum").vectorEt();
@@ -153,11 +156,11 @@ namespace Rivet {
         if (matchedTrackJets.size() < 2)
             vetoEvent;
 
-        histo1DMap[channel + "_inc"]["pTV"]->fill(vboson.pT());
-        histo1DMap[channel + "_inc"]["pTJ"]->fill(fatjet.pT());
-        histo1DMap[channel + "_inc"]["mJ"]->fill(fatjet.mass());
+        histo1DMap[channel + "_inc"]["pTV"]->fill(vboson.pT(), w);
+        histo1DMap[channel + "_inc"]["pTJ"]->fill(fatjet.pT(), w);
+        histo1DMap[channel + "_inc"]["mJ"]->fill(fatjet.mass(), w);
         histo1DMap[channel + "_inc"]["dRbb"]->fill(
-                deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)));
+                deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
 
         int nBtags = 0;
         foreach (const Jet& trackjet, matchedTrackJets) {
@@ -171,11 +174,11 @@ namespace Rivet {
         else
             channel += "_2tag";
 
-        histo1DMap[channel]["pTV"]->fill(vboson.pT());
-        histo1DMap[channel]["pTJ"]->fill(fatjet.pT());
-        histo1DMap[channel]["mJ"]->fill(fatjet.mass());
+        histo1DMap[channel]["pTV"]->fill(vboson.pT(), w);
+        histo1DMap[channel]["pTJ"]->fill(fatjet.pT(), w);
+        histo1DMap[channel]["mJ"]->fill(fatjet.mass(), w);
         histo1DMap[channel]["dRbb"]->fill(
-                deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)));
+                deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
 
         return;
     }
@@ -230,7 +233,7 @@ namespace Rivet {
 
         foreach (const string& channel, channels) {
             histo1DMap[channel][label] =
-                bookHisto1D(label, nxbins, xmin, xmax, channel, xlabel, ylabel);
+                bookHisto1D(channel + "_" + label, nxbins, xmin, xmax, channel, xlabel, ylabel);
         }
 
         return;
@@ -250,7 +253,7 @@ namespace Rivet {
 
         foreach (const string& channel, channels) {
             histo2DMap[channel][label] =
-                bookHisto2D(label, nxbins, xmin, xmax,
+                bookHisto2D(channel + "_" + label, nxbins, xmin, xmax,
                         nybins, ymin, ymax, channel,
                         xlabel, ylabel, zlabel);
         }
@@ -264,7 +267,7 @@ namespace Rivet {
 
         foreach (const string& channel, channels) {
             profile1DMap[channel][label] =
-                bookProfile1D(label, nxbins, xmin, xmax,
+                bookProfile1D(channel + "_" + label, nxbins, xmin, xmax,
                         channel, xlabel, ylabel);
         }
 
