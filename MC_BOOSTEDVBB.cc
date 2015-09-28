@@ -70,9 +70,12 @@ namespace Rivet {
 
 
         // calo jets constituents
+        // INCLUDING NONPROMPT NEUTRINOS FOR NOW
         VetoedFinalState caloJetParts(allParticles);
         caloJetParts.addVetoOnThisFinalState(leptonFinder);
-        addProjection(FastJets(caloJetParts, FastJets::ANTIKT, 1.0), "AKTCalo10");
+        FastJets fj10(caloJetParts, FastJets::ANTIKT, 1.0);
+        fj10.useInvisibles(true);
+        addProjection(fj10, "AKTCalo10");
 
         // track jets constituents
         ChargedFinalState trackParts(Cuts::abseta < 2.5 && Cuts::pT > 0.5*GeV);
@@ -164,7 +167,10 @@ namespace Rivet {
 
         int nBtags = 0;
         foreach (const Jet& trackjet, matchedTrackJets) {
-            nBtags += (trackjet.bTagged(Cuts::pT > 5*GeV));
+            // TODO
+            // update for Rivet 2.4.0+
+            // nBtags += (trackjet.bTagged(Cuts::pT > 5*GeV));
+            nBtags += trackjet.bTagged();
         }
 
         if (nBtags == 0)
