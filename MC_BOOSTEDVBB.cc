@@ -18,7 +18,6 @@
 #include "Rivet/Projections/MissingMomentum.hh"
 
 #include "fastjet/JetDefinition.hh"
-#include "fastjet/contrib/VariableR.hh"
 
 using std::map;
 using std::string;
