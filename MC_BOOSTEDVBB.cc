@@ -10,6 +10,7 @@
 
 #include "Rivet/Projections/FinalState.hh"
 #include "Rivet/Projections/PromptFinalState.hh"
+#include "Rivet/Projections/VetoedFinalState.hh"
 #include "Rivet/Projections/ChargedFinalState.hh"
 #include "Rivet/Projections/FastJets.hh"
 #include "Rivet/Projections/ZFinder.hh"
@@ -62,18 +63,23 @@ namespace Rivet {
         PromptFinalState promptLeptons = PromptFinalState(ChargedLeptons(allParticles));
         promptLeptons.acceptTauDecays(true);
 
+        // TODO
+        // cluster=true?
+        // update to newer constructor...
         DressedLeptons leptonFinder(allParticles, promptLeptons,
-                0.1, Cuts::abseta < 2.5 && Cuts::pT > 25*GeV);
+                0.1, true, -2.5, 2.5, 25*GeV);
 
         addProjection(leptonFinder, "LeptonFinder");
 
-
         // calo jets constituents
-        // INCLUDING NONPROMPT NEUTRINOS FOR NOW
         VetoedFinalState caloJetParts(allParticles);
         caloJetParts.addVetoOnThisFinalState(leptonFinder);
         FastJets fj10(caloJetParts, FastJets::ANTIKT, 1.0);
-        fj10.useInvisibles(true);
+
+        // TODO
+        // include neutrinos from hadron decays.
+        // fj10.useInvisibles(true);
+
         addProjection(fj10, "AKTCalo10");
 
         // track jets constituents
@@ -112,6 +118,8 @@ namespace Rivet {
 
         FourMomentum met4V(met3V.mod2(), met3V.x(), met3V.y(), met3V.z());
 
+        cout << "leptons.size(): " << leptons.size() << endl;
+
         // find the appropriate nleptons channel.
         string channel;
         FourMomentum vboson;
@@ -139,22 +147,25 @@ namespace Rivet {
             applyProjection<FastJets>(event, "AKTCalo10").jetsByPt(Cuts::abseta < 2.0 && Cuts::pT > 250*GeV);
 
         // TODO
-        // too harsh?
-        // require exactly one high-pt large-R jet
-        if (fatjets.size() != 1)
+        // require exactly one high-pt large-R jet?
+        cout << "if (fatjets.size() == 0)" << endl;
+        if (fatjets.size() == 0)
             vetoEvent;
 
+        cout << "const Jet& fatjet = fatjets.at(0);" << endl;
         const Jet& fatjet = fatjets.at(0);
 
         const Jets& trackjets =
             applyProjection<FastJets>(event, "AKTTrack02").jetsByPt(Cuts::abseta < 2.5 && Cuts::pT > 7.0*GeV);
 
+        cout << "Jets matchedTrackJets;" << endl;
         Jets matchedTrackJets;
         foreach (const Jet& trackjet, trackjets) {
             if (deltaR(fatjet, trackjet) < 1.0)
                 matchedTrackJets.push_back(trackjet);
         }
 
+        cout << "if (matchedTrackJets.size() < 2)" << endl;
         if (matchedTrackJets.size() < 2)
             vetoEvent;
 
