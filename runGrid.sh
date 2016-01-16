@@ -1,0 +1,1 @@
+pathena --split=1 --nEventsPerJob=500000 --long --extOutFile boostedvbb.yoda --inDS=mc15_13TeV.361341.Sherpa_CT10_Wmunu_Pt700_1000_BFilter.evgen.EVNT.e4133/ --outDS=user.cpollard.mc15_13TeV.361341.Sherpa_CT10_Wmunu_Pt700_1000_BFilter.evgen.EVNT.e4133.RIVETTEST/ --extFile=RivetMyAnalysis.so=RivetMC_BOOSTEDVBB.so runBOOSTEDVBB.py
