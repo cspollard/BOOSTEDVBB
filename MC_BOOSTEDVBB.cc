@@ -107,6 +107,9 @@ namespace Rivet {
         const vector<DressedLepton>& leptons =
             applyProjection<DressedLeptons>(event, "LeptonFinder").dressedLeptons();
 
+        // TODO
+        // does this have the correct sign?
+        // update to Rivet2.4.0
         Vector3 met3V =
             applyProjection<MissingMomentum>(event, "MissingMomentum").vectorEt();
         met3V.setZ(0);
