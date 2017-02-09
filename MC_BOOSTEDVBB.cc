@@ -151,28 +151,19 @@ namespace Rivet {
         const Jets& trackjets =
             applyProjection<FastJets>(event, "AKTTrack02").jetsByPt(Cuts::abseta < 2.5 && Cuts::pT > 7.0*GeV);
 
-        Jets matchedTrackJets;
-        foreach (const Jet& trackjet, trackjets) {
-            if (deltaR(fatjet, trackjet) < 1.0)
-                matchedTrackJets.push_back(trackjet);
-        }
-
         histo1DMap[channel + "_inc"]["pTV"]->fill(vboson.pT(), w);
         histo1DMap[channel + "_inc"]["pTJ"]->fill(fatjet.pT(), w);
         histo1DMap[channel + "_inc"]["mJ"]->fill(fatjet.mass(), w);
         histo1DMap[channel + "_inc"]["mVJ"]->fill((fatjet + vboson).mass(), w);
 
-        if (matchedTrackJets.size() >= 2)
-            histo1DMap[channel + "_inc"]["dRbb"]->fill(
-                    deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
-
-        int nBtags = 0;
-        foreach (const Jet& trackjet, matchedTrackJets) {
-            nBtags += (trackjet.bTagged(Cuts::pT > 5*GeV));
+        Jets matchedBTrackJets;
+        foreach (const Jet& trackjet, trackjets) {
+            if ( deltaR(fatjet, trackjet) < 1.0
+                    && trackjet.bTagged(Cuts::pT > 5*GeV) )
+                matchedBTrackJets.push_back(trackjet);
         }
 
-        if (matchedTrackJets.size() < 2)
-            vetoEvent;
+        int nBtags = matchedBTrackJets.size();
 
         if (nBtags == 0)
             channel += "_0tag";
@@ -186,9 +177,9 @@ namespace Rivet {
         histo1DMap[channel]["mJ"]->fill(fatjet.mass(), w);
         histo1DMap[channel]["mVJ"]->fill((fatjet + vboson).mass(), w);
 
-        if (matchedTrackJets.size() >= 2)
+        if (nBtags >= 2)
             histo1DMap[channel]["dRbb"]->fill(
-                    deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
+                    deltaR(matchedBTrackJets.at(0), matchedBTrackJets.at(1)), w);
 
         return;
     }
