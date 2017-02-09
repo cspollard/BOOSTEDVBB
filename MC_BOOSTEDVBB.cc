@@ -50,10 +50,12 @@ namespace Rivet {
 
         bookHistoAllChannels("pTV", "V ${p_{\\rm T}}$ / GeV",
                 50, 0, 1000*GeV);
-        bookHistoAllChannels("pTJ", "jet ${p_{\\rm T}}$ / GeV",
+        bookHistoAllChannels("pTJ", "large-$R$ jet ${p_{\\rm T}}$ / GeV",
                 50, 0, 1000*GeV);
-        bookHistoAllChannels("mJ", "jet mass / GeV",
+        bookHistoAllChannels("mJ", "large-$R$ jet mass / GeV",
                 50, 0, 300*GeV);
+        bookHistoAllChannels("mVJ", "$m_{\\rm VJ}$ / GeV",
+                50, 0, 3000*GeV);
         bookHistoAllChannels("dRbb", "$\\Delta R(b, b)$",
                 50, 0, 4);
 
@@ -112,26 +114,18 @@ namespace Rivet {
         const vector<DressedLepton>& leptons =
             applyProjection<DressedLeptons>(event, "LeptonFinder").dressedLeptons();
 
-        // TODO
-        // does this have the correct sign?
-        // update to Rivet2.4.0
-        Vector3 met3V =
-            applyProjection<MissingMomentum>(event, "MissingMomentum").vectorEt();
-        met3V.setZ(0);
-
-        FourMomentum met4V(met3V.mod2(), met3V.x(), met3V.y(), met3V.z());
-
-        cout << "leptons.size(): " << leptons.size() << endl;
+        FourMomentum pmiss =
+            applyProjection<MissingMomentum>(event, "MissingMomentum").missingMom(90*GeV);
 
         // find the appropriate nleptons channel.
         string channel;
         FourMomentum vboson;
         if (leptons.size() == 0) {
             channel = "vvbb";
-            vboson = met4V;
+            vboson = pmiss;
         } else if (leptons.size() == 1) {
             channel = "lvbb";
-            vboson = leptons.at(0).momentum() + met4V;
+            vboson = leptons.at(0).momentum() + pmiss;
         } else if (leptons.size() == 2) {
             channel = "llbb";
             Particles zelels = applyProjection<ZFinder>(event, "ZelelFinder").bosons();
@@ -149,42 +143,36 @@ namespace Rivet {
         const Jets& fatjets =
             applyProjection<FastJets>(event, "AKTCalo10").jetsByPt(Cuts::abseta < 2.0 && Cuts::pT > 250*GeV);
 
-        // TODO
-        // require exactly one high-pt large-R jet?
-        cout << "if (fatjets.size() == 0)" << endl;
         if (fatjets.size() == 0)
             vetoEvent;
 
-        cout << "const Jet& fatjet = fatjets.at(0);" << endl;
         const Jet& fatjet = fatjets.at(0);
 
         const Jets& trackjets =
             applyProjection<FastJets>(event, "AKTTrack02").jetsByPt(Cuts::abseta < 2.5 && Cuts::pT > 7.0*GeV);
 
-        cout << "Jets matchedTrackJets;" << endl;
         Jets matchedTrackJets;
         foreach (const Jet& trackjet, trackjets) {
             if (deltaR(fatjet, trackjet) < 1.0)
                 matchedTrackJets.push_back(trackjet);
         }
 
-        cout << "if (matchedTrackJets.size() < 2)" << endl;
-        if (matchedTrackJets.size() < 2)
-            vetoEvent;
-
         histo1DMap[channel + "_inc"]["pTV"]->fill(vboson.pT(), w);
         histo1DMap[channel + "_inc"]["pTJ"]->fill(fatjet.pT(), w);
         histo1DMap[channel + "_inc"]["mJ"]->fill(fatjet.mass(), w);
-        histo1DMap[channel + "_inc"]["dRbb"]->fill(
-                deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
+        histo1DMap[channel + "_inc"]["mVJ"]->fill((fatjet + vboson).mass(), w);
+
+        if (matchedTrackJets.size() >= 2)
+            histo1DMap[channel + "_inc"]["dRbb"]->fill(
+                    deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
 
         int nBtags = 0;
         foreach (const Jet& trackjet, matchedTrackJets) {
-            // TODO
-            // update for Rivet 2.4.0+
-            // nBtags += (trackjet.bTagged(Cuts::pT > 5*GeV));
-            nBtags += trackjet.bTagged();
+            nBtags += (trackjet.bTagged(Cuts::pT > 5*GeV));
         }
+
+        if (matchedTrackJets.size() < 2)
+            vetoEvent;
 
         if (nBtags == 0)
             channel += "_0tag";
@@ -196,8 +184,11 @@ namespace Rivet {
         histo1DMap[channel]["pTV"]->fill(vboson.pT(), w);
         histo1DMap[channel]["pTJ"]->fill(fatjet.pT(), w);
         histo1DMap[channel]["mJ"]->fill(fatjet.mass(), w);
-        histo1DMap[channel]["dRbb"]->fill(
-                deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
+        histo1DMap[channel]["mVJ"]->fill((fatjet + vboson).mass(), w);
+
+        if (matchedTrackJets.size() >= 2)
+            histo1DMap[channel]["dRbb"]->fill(
+                    deltaR(matchedTrackJets.at(0), matchedTrackJets.at(1)), w);
 
         return;
     }
@@ -247,7 +238,7 @@ namespace Rivet {
         double xbinwidth = (xmax - xmin)/nxbins;
 
         char buff[100];
-        sprintf(buff, "events / %.2f", xbinwidth);
+        sprintf(buff, "pb / %.2f", xbinwidth);
         string ylabel = buff;
 
         foreach (const string& channel, channels) {
@@ -267,7 +258,7 @@ namespace Rivet {
         double ybinwidth = (ymax - ymin)/nybins;
 
         char buff[100];
-        sprintf(buff, "events / %.2f / %.2f", xbinwidth, ybinwidth);
+        sprintf(buff, "pb / %.2f / %.2f", xbinwidth, ybinwidth);
         string zlabel = buff;
 
         foreach (const string& channel, channels) {
